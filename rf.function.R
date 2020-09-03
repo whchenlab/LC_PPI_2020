@@ -337,6 +337,95 @@ rf.evaluate <- function( rf ){
 
 ## ------------------------------------------------------------------------------------------------------------------------------
 ## ------------------------------------------------------------------------------------------------------------------------------
+rf.predict <- function(rf,  test.data.frame ){
+    
+    ## -- elapsed time --
+    tic( "Prediction using external data " );
+    
+    ## ========================================================================
+    ## -- sanity check --
+    ## 1. check if input contains necessary data 
+    if( sum( "rf.models" %in% names(rf) ) < 1  ){
+        stop( "San check failed: input data does not contain required slot: 'rf.models', please check if you have trained the models." );
+    }
+    
+    ## -- 2. input data should be a data frame ; 输入数据必需是 data.frame 
+    if( !is.data.frame( test.data.frame )  ){
+        stop( "San check failed: input data should be a data.frame. Please double check!!." );
+    }
+    
+    ## 3. check if contain non-numeric columns -- 输入数据不能包含 非数值 列；
+    if( sum( !unlist(lapply( test.data.frame , is.numeric))) > 0  ){
+        stop( "San check failed: input data.frame contains non-numeric column(s), please remove them or re-prepare your data." );
+    }
+    
+    ## ---select features needed by models ----------## 
+    ### 从模型中找到建模所需的 feature  (taxon names ) ... 
+    feat.names <- rf$rf.models[[1]]$xvar.names; 
+    
+    ## 注意，rf.data$feat.data里除了feature外，还有Grouping列
+    useless.features<-setdiff( colnames( test.data.frame ),  feat.names );
+    lacking.features<-setdiff( feat.names, colnames( test.data.frame ));
+    
+    ## 移除无用的feature
+    test.feat.data <- test.data.frame[ !colnames(test.data.frame) %in% useless.features ];
+    
+    ## 插入缺失的feature 填入0
+    for(f in lacking.features){
+        test.feat.data[f] = vector(mode = "numeric", nrow(test.feat.data) );
+    }
+    
+    ## warning messages ...
+    if( length(lacking.features) > 0 ){
+        cat("\n--------------------------------------- WARNING ---------------------------------------\n");
+        cat("# of required features: ", length( feat.names ), "\n", sep = "");
+        cat("# of features NOT found in your input: ", length( lacking.features ), "\n", sep = "" );
+        cat("  the predicted results may NOT be reliable due to these missing features!!\n");
+        cat("---------------------------------------------------------------------------------------\n\n");
+    }
+    
+    ## -- reorder columns according to those in the models ... 
+    test.feat.data <- test.feat.data[, feat.names ]; 
+    
+    ## --
+    pb1 <- progress_bar$new( format = "Predicting [:bar] :percent in :elapsed", clear = FALSE, total =  length( rf$rf.models ) );
+    
+    ## ---for external validation -----------##
+    pred.result <- list();
+    
+    for (iter in names(rf$rf.models)) {
+        pred <- predict(rf$rf.models[[iter]], test.feat.data, type = "prob");
+        pred.df <- data.frame(pred$predicted, stringsAsFactors = F);
+        pred.df$Sample <- rownames(test.feat.data);
+        pred.result[[iter]] <- pred.df;
+        
+        ## -- tick --
+        pb1$tick();
+    }
+    
+    pred.result.df <- pred.result %>%
+        purrr::reduce(rbind) %>% group_by(Sample);
+    
+    ## -- 注意 gather 与 spread 的用法 ... 
+    pred.result.df <- pred.result.df %>% 
+        gather( Verdict, Prob, -Sample ) %>% 
+        group_by( Sample, Verdict ) %>% 
+        summarise( Prob = mean( Prob ) ) %>% 
+        spread( Verdict, Prob );
+    
+    pred.result.df <- as.data.frame( pred.result.df );
+    pred.result.df$Predicted <- apply(pred.result.df, 1, function(data){ names(which.max(data[ c( rf$control.group, rf$case.group ) ]))} );
+    
+    toc(  ); ## show elapsed time ... 
+    
+    return( list(
+        "userdata" = test.data.frame,
+        "userdata.reformatted" = test.feat.data, 
+        "predicted.results.df" = pred.result.df
+    ) );
+}
+## -----------------------------------------------------------------------------------------------------------------------
+## -----------------------------------------------------------------------------------------------------------------------
 rf.external.validation <- function( rf, ext.feat.data, ext.meta.data ){
     
     ## -- elapsed time --
