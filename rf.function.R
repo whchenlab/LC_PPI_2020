@@ -1,3 +1,7 @@
+## -- data cleansing -- 
+require(tidyverse);
+
+
 ## -- modeling, ROC and helper libraries 
 require(ROCR);
 require(randomForestSRC); ## use randomforestSRC instead ... 
@@ -10,7 +14,8 @@ require(tictoc); ## show elapsed time
 
 ## -- libraries for parallel computing --;
 require( doSNOW );
-
+## ------------------------------------------------------------------------------------------------------------------------------
+## ------------------------------------------------------------------------------------------------------------------------------
 rf.setdata <- function( feat.data, meta.data, grouping = "Group", control = "Healthy" ){
 
   ## -- elapsed time --
@@ -86,6 +91,8 @@ rf.setdata <- function( feat.data, meta.data, grouping = "Group", control = "Hea
   ## -- return --
   return( rf );
 }
+## ------------------------------------------------------------------------------------------------------------------------------
+## ------------------------------------------------------------------------------------------------------------------------------
 
 rf.train <- function( rf, fold = 10, resample = 10, parallel = F, num.cores = 10, class.weights = NULL ){
   
@@ -266,7 +273,8 @@ rf.train <- function( rf, fold = 10, resample = 10, parallel = F, num.cores = 10
   ## -- return --
   return( rf );
 }
-
+## ------------------------------------------------------------------------------------------------------------------------------
+## ------------------------------------------------------------------------------------------------------------------------------
 rf.evaluate <- function( rf ){
   
   ## -- requires ... 
@@ -326,4 +334,108 @@ rf.evaluate <- function( rf ){
   toc(  ); ## show elapsed time ... 
   return( rf.new );
 }
+
+## ------------------------------------------------------------------------------------------------------------------------------
+## ------------------------------------------------------------------------------------------------------------------------------
+rf.external.validation <- function( rf, ext.feat.data, ext.meta.data ){
+    
+    ## -- elapsed time --
+    tic( "External validation " );
+    
+    ## ========================================================================
+    ## -- sanity check & run predictions--
+    ## 1. check if input contains necessary data 
+    if( sum( c("rf.models", "control.group", "case.group", "grouping.column" ) %in% names( rf )  ) < 4  ){
+        stop( "San check failed: input data does not contain all required slots: 'rf.models', 'control.group', 'case.group', 'grouping.column', please check your input." );
+    }
+    
+    ## -- get data from tf ... 
+    grouping <- rf[["grouping.column"]]; ## the column in meta.data for the grouping information, i.e. CASE, CONTROL
+    control.group <- rf[["control.group"]];
+    case.group <- rf[["case.group"]];
+    
+    ## -- 2. try to validate feat and meta data by build a new rf object using rf.setdata --
+    rf.ext.data <- rf.setdata( ext.feat.data, ext.meta.data, grouping = grouping, control = control.group );
+    
+    ## -- 3. get feat data with and without groups, and use rf.predict to do predictions --
+    feat.w.grp <- rf.ext.data$feat.data;
+    feat.w.o.grp <- feat.w.grp[ , !colnames(feat.w.grp) %in% "Group" ];
+    
+    ext.data.pred <- rf.predict( rf, feat.w.o.grp );
+    
+    ## -- 4. evaluate performance --
+    res.pred.df <- ext.data.pred$predicted.results.df;
+    res.pred.df$Group <-  ext.meta.data[ res.pred.df$Sample, grouping ];
+    
+    #### ======= THE FOLLOWING CODES ARE THE SAME FROM rf.evaluate =======
+    rf.new <- evaluate.internal.use( res.pred.df, control.group, case.group );
+    
+    toc(  ); ## show elapsed time ... 
+    return( rf.new );
+}
+
+## ------------------------------------------------------------------------------------------------------------------------------
+## ------------------------------------------------------------------------------------------------------------------------------
+evaluate.internal.use <- function( res.pred.df, control.group, case.group ){
+    
+    forestpred <- ROCR::prediction( res.pred.df[, case.group ], res.pred.df[, "Group" ],
+                                    label.ordering = c( control.group, case.group ));
+    
+    forestperf <- ROCR::performance(forestpred, "tpr", "fpr");
+    data.roc.df <- data.frame( fpr = forestperf@x.values[[1]],  tpr = forestperf@y.values[[1]] );
+    
+    ## -- 4. use pROC to calculate AUC with CI -
+    auc <- pROC::roc( res.pred.df[, "Group"], res.pred.df[, case.group ], levels = c( control.group, case.group ), ci = TRUE, plot = FALSE );
+    auc.ci.values <- round( as.numeric( auc$ci ), digits = 2 ); ## a vector of three
+    auc.string <- paste0( auc.ci.values[2], " (95%CI: ",  auc.ci.values[1], "-",  auc.ci.values[3], ")")
+    
+    ## -- 5. plot --
+    data.roc.plot <- 
+        ggplot(data.roc.df, aes(x = fpr, y = tpr) ) + geom_line() + theme_bw() + 
+        labs(x = "False Positve Rate", y = "True Positive Rate", title = "ROC plot")  + 
+        annotate( "text", x = .75, y = .75, label = paste0( "AUC:", auc.string ), size = 4) +
+        theme( plot.title = element_text(hjust = .5, face = "bold", size = 11), 
+               axis.text = element_text(size = 9) );
+    
+    print( data.roc.plot );
+    
+    ## ========================================================================
+    ### calculate confusion matrix --
+    confusion <- table( res.pred.df[,  c( "Group", "Predicted" ) ] );
+    errors <- round( 1 - diag( confusion ) / rowSums( confusion ), digits = 3 );
+    errors.overall <- round(  1 - ( sum(diag(confusion)) / sum( confusion ) ) , digits = 3 );
+    
+    ## ========================================================================
+    ## -- print on-screen statistics ...  
+    cat("\n--------------------------------------------\n");
+    cat( "Overall performance (AUC): ", auc.string, "\n\n" );
+    cat( "Predicted vs. Truth (Group): \n" );
+    cat( "Control group: ", control.group, "\n" );
+    cat( "Case group: ", case.group, "\n\n" );
+    print( confusion );
+    cat( "---------\n" );
+    cat( "Error rates: \n" );
+    print( errors );
+    cat("\nOverall error rate: ", errors.overall, "\n", sep = "");
+    cat("--------------------------------------------\n\n");
+    ## ========================================================================
+    ## -- 
+    
+    rf.new <- list( "roc.df" = data.roc.df, 
+                    "roc.plot" = data.roc.plot, 
+                    "auc" = auc.ci.values[2], 
+                    "auc.with.ci" = auc.ci.values, 
+                    "auc.obj" = auc, 
+                    "auc.string" = auc.string,
+                    "pred.df" = res.pred.df, 
+                    "error.rates" = errors,
+                    "overall.error.rate" = errors.overall);
+    
+    cat( "Data size: ", format( object.size(rf.new), units = "MB" ), "\n", sep = "");
+    cat("---\n");
+    
+    return(rf.new);
+}
+## ------------------------------------------------------------------------------------------------------------------------------
+## ------------------------------------------------------------------------------------------------------------------------------
 
