@@ -34,7 +34,7 @@ rf.discovery <- rf.train(discovery, parallel = T, num.cores = 20, class.weights 
 rf.discovery.eval <- rf.evaluate(rf.discovery)
 #Overall performance (AUC):  0.93 (95%CI: 0.89-0.97)
 rf.ext.19<-rf.external.validation(rf.discovery,validation.featdata.loomba,qc.val.metadata)
-#Overall performance (AUC):  0.92 (95%CI: 0.87-0.98)
+#Overall performance (AUC):  0.92 (95%CI: 0.86-0.98)
 
 ## 4 species
 ## --------------------------------------------
@@ -57,19 +57,19 @@ guens.2 <- rf.setdata(qc.2.genus.data,all.metadata,grouping = "Group",control = 
 #Control group: 'Healthy', w/ 142 samples,rf.all.5to19 <- rf.train(all.5to19.data,parallel = T, num.cores = 20, class.weights = T)
 rf.guens.2 <- rf.train(guens.2,parallel = T, num.cores = 20, class.weights = T)
 rf.guens.2.eval <- rf.evaluate(rf.guens.2)
-#Overall performance (AUC): Overall performance (AUC):  0.89 (95%CI: 0.86-0.93) 
+#Overall performance (AUC): Overall performance (AUC):  0.9 (95%CI: 0.86-0.93) 
 ## Iebba
 Iebba.genus<-Iebba.genus%>%select(c("Veillonella","Streptococcus"))
 Iebba.genus<-Iebba.genus*100 ## (0-1) to (0-100)
 Iebba.genus.metadata$Group<-str_replace_all(Iebba.genus.metadata$Group,"C","Healthy")
 Iebba.genus.metadata$Group<-str_replace_all(Iebba.genus.metadata$Group,"D","LC")
 Iebba<-rf.setdata(Iebba.genus,Iebba.genus.metadata,grouping = "Group",control = "Healthy")
-rf.Iebba<-rf.train(lebba,parallel = T, num.cores = 20, class.weights = T)
-rf.Iebba.eval <- rf.evaluate(rf.lebba)
-#Overall performance (AUC):  0.84 (95%CI: 0.73-0.95)
+rf.Iebba<-rf.train(Iebba,parallel = T, num.cores = 20, class.weights = T)
+rf.Iebba.eval <- rf.evaluate(rf.Iebba)
+#Overall performance (AUC):  0.85 (95%CI: 0.74-0.96)
 
 Iebba.val<-rf.external.validation(rf.guens.2,Iebba.genus,Iebba.genus.metadata)
-#Overall performance (AUC):  Overall performance (AUC):  0.96 (95%CI: 0.91-1) 
+#Overall performance (AUC):  Overall performance (AUC):  0.94 (95%CI: 0.89-1)
 
 qin.val<-rf.external.validation(rf.Iebba,qc.2.genus.data,all.metadata)
 #Overall performance (AUC): Overall performance (AUC):  0.89 (95%CI: 0.85-0.93) 
