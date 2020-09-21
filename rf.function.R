@@ -14,6 +14,9 @@ require(tictoc); ## show elapsed time
 
 ## -- libraries for parallel computing --;
 require( doSNOW );
+
+## -- plot --;
+require( ggplot2 );
 ## ------------------------------------------------------------------------------------------------------------------------------
 ## ------------------------------------------------------------------------------------------------------------------------------
 rf.setdata <- function( feat.data, meta.data, grouping = "Group", control = "Healthy" ){
