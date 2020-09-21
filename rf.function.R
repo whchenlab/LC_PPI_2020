@@ -1,11 +1,9 @@
 ## -- data cleansing -- 
 require(tidyverse);
 
-
 ## -- modeling, ROC and helper libraries 
 require(ROCR);
 require(randomForestSRC); ## use randomforestSRC instead ... 
-require(caret);
 require(pROC);
 
 ## -- system helper libs --
@@ -17,6 +15,8 @@ require( doSNOW );
 
 ## -- plot --;
 require( ggplot2 );
+
+
 ## ------------------------------------------------------------------------------------------------------------------------------
 ## ------------------------------------------------------------------------------------------------------------------------------
 rf.setdata <- function( feat.data, meta.data, grouping = "Group", control = "Healthy" ){
