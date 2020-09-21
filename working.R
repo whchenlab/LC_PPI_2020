@@ -1,3 +1,10 @@
+
+## The following R packages are required：
+## tidyverse,ROCR,randomForestSRC,pROC,progress,tictoc,doSNOW,ggplot2 and magrittr
+
+## source rf.function.R
+source("./rf.function.PPI.R");
+
 ## data
 ## --------------------------------------------
 ## Qin
@@ -17,13 +24,13 @@ Iebba.genus.metadata <- read.csv("./data/samples2run2",sep = "\t",row.names = 1)
 
 ## Loomba's features
 loomba.features <- read.csv(file = "./data/loomba.features.final.txt")
-discovery.featdata.loomba <- discovery.featdata%>%select(loomba.features$features)
-discovery.featdata.loomba <-discovery.featdata.loomba[!rownames(discovery.featdata.loomba)%in%qc.fail.run$run.id,]
-validation.featdata.loomba <- validation.featdata%>%select(loomba.features$features)
-validation.featdata.loomba <-validation.featdata.loomba[!rownames(validation.featdata.loomba)%in%qc.fail.run$run.id,]
-qc.dis.metadata <- discovery.metadata[!rownames(discovery.metadata)%in%qc.fail.run$run.id,]
-qc.val.metadata <- validation.metadata[!rownames(validation.metadata)%in%qc.fail.run$run.id,]
-
+###
+discovery.featdata.loomba <- discovery.featdata %>% dplyr::select(loomba.features$features)
+discovery.featdata.loomba <-discovery.featdata.loomba[!rownames(discovery.featdata.loomba) %in% qc.fail.run$run.id,]
+validation.featdata.loomba <- validation.featdata %>% dplyr::select(loomba.features$features)
+validation.featdata.loomba <-validation.featdata.loomba[!rownames(validation.featdata.loomba) %in% qc.fail.run$run.id,]
+qc.dis.metadata <- discovery.metadata[!rownames(discovery.metadata) %in% qc.fail.run$run.id,]
+qc.val.metadata <- validation.metadata[!rownames(validation.metadata) %in% qc.fail.run$run.id,]
 
 ## ----------------------------------------------------------------------------------------
 ## modeling
@@ -38,7 +45,7 @@ rf.ext.19<-rf.external.validation(rf.discovery,validation.featdata.loomba,qc.val
 
 ## 4 species
 ## --------------------------------------------
-discovery.4.features <- discovery.featdata.loomba%>%select(c("Veillonella.atypica","Veillonella.parvula","Streptococcus.parasanguinis","Streptococcus.salivarius"))
+discovery.4.features <- discovery.featdata.loomba %>% dplyr::select(c("Veillonella.atypica","Veillonella.parvula","Streptococcus.parasanguinis","Streptococcus.salivarius"))
 discovery.4.data <- rf.setdata(discovery.4.features,qc.dis.metadata,grouping = "Group",control = "Healthy")
 rf.discovery.4 <- rf.train(discovery.4.data,parallel = T, num.cores = 20, class.weights = T)
 rf.discovery.4.eval <- rf.evaluate(rf.discovery.4)
@@ -48,8 +55,8 @@ rf.ext.4<-rf.external.validation(rf.discovery.4,validation.featdata.loomba,qc.va
 
 ## 2 genus
 ## Qin
-qc.genus.data <- genus.data[which(!row.names(genus.data)%in%qc.fail.run$run.id),]
-qc.2.genus.data <- qc.genus.data%>%select(c("Veillonella","Streptococcus"))
+qc.genus.data <- genus.data[which(!row.names(genus.data) %in% qc.fail.run$run.id),]
+qc.2.genus.data <- qc.genus.data %>% dplyr::select(c("Veillonella","Streptococcus"))
 all.metadata <- rbind(qc.dis.metadata,qc.val.metadata)
 guens.2 <- rf.setdata(qc.2.genus.data,all.metadata,grouping = "Group",control = "Healthy")
 #In total, the feature data contains 302 samples, with 2 features.
@@ -59,7 +66,7 @@ rf.guens.2 <- rf.train(guens.2,parallel = T, num.cores = 20, class.weights = T)
 rf.guens.2.eval <- rf.evaluate(rf.guens.2)
 #Overall performance (AUC): Overall performance (AUC):  0.9 (95%CI: 0.86-0.93) 
 ## Iebba
-Iebba.genus<-Iebba.genus%>%select(c("Veillonella","Streptococcus"))
+Iebba.genus<-Iebba.genus %>% dplyr::select(c("Veillonella","Streptococcus"))
 Iebba.genus<-Iebba.genus*100 ## (0-1) to (0-100)
 Iebba.genus.metadata$Group<-str_replace_all(Iebba.genus.metadata$Group,"C","Healthy")
 Iebba.genus.metadata$Group<-str_replace_all(Iebba.genus.metadata$Group,"D","LC")
