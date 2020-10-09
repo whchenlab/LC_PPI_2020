@@ -5,6 +5,7 @@ require(tidyverse);
 require(ROCR);
 require(randomForestSRC); ## use randomforestSRC instead ... 
 require(pROC);
+require(caret);
 
 ## -- system helper libs --
 require(progress);
