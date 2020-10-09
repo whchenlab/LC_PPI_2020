@@ -1,6 +1,6 @@
 
 ## The following R packages are required：
-## tidyverse,ROCR,randomForestSRC,pROC,progress,tictoc,doSNOW,ggplot2 and magrittr
+## tidyverse, ROCR, randomForestSRC, pROC, progress, tictoc, doSNOW, ggplot2, caret and magrittr
 
 ## source rf.function.R
 source("./rf.function.PPI.R");
